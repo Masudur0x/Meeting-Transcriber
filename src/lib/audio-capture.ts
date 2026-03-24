@@ -15,11 +15,22 @@ export class AudioCapture {
   private micChunks: Blob[] = [];
   private systemChunks: Blob[] = [];
   private startTime: number = 0;
+  private pausedAt: number = 0;
+  private pausedDuration: number = 0;
   private onDurationUpdate: ((seconds: number) => void) | null = null;
+  private onAudioLevels: ((micLevel: number, systemLevel: number) => void) | null = null;
   private durationInterval: ReturnType<typeof setInterval> | null = null;
+  private audioContext: AudioContext | null = null;
+  private micAnalyser: AnalyserNode | null = null;
+  private systemAnalyser: AnalyserNode | null = null;
+  private levelInterval: ReturnType<typeof setInterval> | null = null;
 
   setOnDurationUpdate(callback: (seconds: number) => void) {
     this.onDurationUpdate = callback;
+  }
+
+  setOnAudioLevels(callback: (micLevel: number, systemLevel: number) => void) {
+    this.onAudioLevels = callback;
   }
 
   /**
@@ -133,14 +144,39 @@ export class AudioCapture {
 
     // 4. Start recording
     this.startTime = Date.now();
+    this.pausedAt = 0;
+    this.pausedDuration = 0;
     this.micRecorder.start(1000); // Collect data every second
     this.systemRecorder?.start(1000);
 
     // 5. Duration timer
     this.durationInterval = setInterval(() => {
-      const seconds = Math.floor((Date.now() - this.startTime) / 1000);
+      const seconds = Math.floor((Date.now() - this.startTime - this.pausedDuration) / 1000);
       this.onDurationUpdate?.(seconds);
     }, 1000);
+
+    // 6. Audio level monitoring
+    this.audioContext = new AudioContext();
+
+    const micSource = this.audioContext.createMediaStreamSource(this.micStream);
+    this.micAnalyser = this.audioContext.createAnalyser();
+    this.micAnalyser.fftSize = 256;
+    this.micAnalyser.smoothingTimeConstant = 0.5;
+    micSource.connect(this.micAnalyser);
+
+    if (this.systemStream) {
+      const systemSource = this.audioContext.createMediaStreamSource(this.systemStream);
+      this.systemAnalyser = this.audioContext.createAnalyser();
+      this.systemAnalyser.fftSize = 256;
+      this.systemAnalyser.smoothingTimeConstant = 0.5;
+      systemSource.connect(this.systemAnalyser);
+    }
+
+    this.levelInterval = setInterval(() => {
+      const micLevel = this.getLevel(this.micAnalyser);
+      const systemLevel = this.getLevel(this.systemAnalyser);
+      this.onAudioLevels?.(micLevel, systemLevel);
+    }, 80);
 
     // Handle system stream ending (user stops sharing)
     this.systemStream?.getAudioTracks().forEach((track) => {
@@ -150,6 +186,19 @@ export class AudioCapture {
     });
   }
 
+  private getLevel(analyser: AnalyserNode | null): number {
+    if (!analyser) return 0;
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(data);
+    let sum = 0;
+    for (let i = 0; i < data.length; i++) {
+      sum += data[i];
+    }
+    const avg = sum / data.length;
+    // Normalize to 0-1 range, with some amplification for sensitivity
+    return Math.min(1, avg / 80);
+  }
+
   async stopCapture(): Promise<AudioCaptureResult> {
     const duration = (Date.now() - this.startTime) / 1000;
 
@@ -157,6 +206,18 @@ export class AudioCapture {
       clearInterval(this.durationInterval);
       this.durationInterval = null;
     }
+
+    if (this.levelInterval) {
+      clearInterval(this.levelInterval);
+      this.levelInterval = null;
+    }
+
+    if (this.audioContext) {
+      this.audioContext.close().catch(() => {});
+      this.audioContext = null;
+    }
+    this.micAnalyser = null;
+    this.systemAnalyser = null;
 
     // Stop recorders and collect final data
     const micPromise = new Promise<void>((resolve) => {
@@ -203,6 +264,93 @@ export class AudioCapture {
 
   isRecording(): boolean {
     return this.micRecorder?.state === "recording";
+  }
+
+  isPaused(): boolean {
+    return this.micRecorder?.state === "paused";
+  }
+
+  pauseCapture(): void {
+    if (this.micRecorder?.state === "recording") {
+      this.micRecorder.pause();
+    }
+    if (this.systemRecorder?.state === "recording") {
+      this.systemRecorder.pause();
+    }
+    this.pausedAt = Date.now();
+
+    // Pause duration timer but keep interval for UI consistency
+    if (this.durationInterval) {
+      clearInterval(this.durationInterval);
+      this.durationInterval = null;
+    }
+
+    // Pause level monitoring
+    if (this.levelInterval) {
+      clearInterval(this.levelInterval);
+      this.levelInterval = null;
+    }
+    this.onAudioLevels?.(0, 0);
+  }
+
+  resumeCapture(): void {
+    if (this.micRecorder?.state === "paused") {
+      this.micRecorder.resume();
+    }
+    if (this.systemRecorder?.state === "paused") {
+      this.systemRecorder.resume();
+    }
+
+    // Track total paused time
+    if (this.pausedAt > 0) {
+      this.pausedDuration += Date.now() - this.pausedAt;
+      this.pausedAt = 0;
+    }
+
+    // Resume duration timer
+    this.durationInterval = setInterval(() => {
+      const seconds = Math.floor((Date.now() - this.startTime - this.pausedDuration) / 1000);
+      this.onDurationUpdate?.(seconds);
+    }, 1000);
+
+    // Resume level monitoring
+    this.levelInterval = setInterval(() => {
+      const micLevel = this.getLevel(this.micAnalyser);
+      const systemLevel = this.getLevel(this.systemAnalyser);
+      this.onAudioLevels?.(micLevel, systemLevel);
+    }, 80);
+  }
+
+  cancelCapture(): void {
+    // Stop timers
+    if (this.durationInterval) {
+      clearInterval(this.durationInterval);
+      this.durationInterval = null;
+    }
+    if (this.levelInterval) {
+      clearInterval(this.levelInterval);
+      this.levelInterval = null;
+    }
+
+    // Close audio context
+    if (this.audioContext) {
+      this.audioContext.close().catch(() => {});
+      this.audioContext = null;
+    }
+    this.micAnalyser = null;
+    this.systemAnalyser = null;
+
+    // Stop recorders without waiting for data
+    try { this.micRecorder?.stop(); } catch {}
+    try { this.systemRecorder?.stop(); } catch {}
+
+    // Stop all tracks
+    this.micStream?.getTracks().forEach((t) => t.stop());
+    this.systemStream?.getTracks().forEach((t) => t.stop());
+
+    // Clear data
+    this.micChunks = [];
+    this.systemChunks = [];
   }
 
   private getSupportedMimeType(): string {

@@ -135,6 +135,9 @@ export default function Home() {
   const [captureMode, setCaptureMode] = useState<CaptureMode>("tab");
   const [virtualDeviceId, setVirtualDeviceId] = useState<string | null>(null);
   const [platform, setPlatform] = useState<"mac" | "windows" | "other">("other");
+  const [micLevel, setMicLevel] = useState(0);
+  const [systemLevel, setSystemLevel] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
 
   const [showResult, setShowResult] = useState(false);
   const [resultData, setResultData] = useState({
@@ -180,6 +183,11 @@ export default function Home() {
     setDuration(seconds);
   }, []);
 
+  const handleAudioLevels = useCallback((mic: number, system: number) => {
+    setMicLevel(mic);
+    setSystemLevel(system);
+  }, []);
+
   const openOnboarding = () => {
     setIsOnboarding(true);
     setShowSettings(true);
@@ -210,6 +218,7 @@ export default function Home() {
     try {
       const capture = new AudioCapture();
       capture.setOnDurationUpdate(handleDurationUpdate);
+      capture.setOnAudioLevels(handleAudioLevels);
       captureRef.current = capture;
 
       await capture.startCapture(
@@ -339,6 +348,28 @@ export default function Home() {
     }
   };
 
+  const togglePause = () => {
+    if (!captureRef.current) return;
+    if (isPaused) {
+      captureRef.current.resumeCapture();
+      setIsPaused(false);
+    } else {
+      captureRef.current.pauseCapture();
+      setIsPaused(true);
+    }
+  };
+
+  const cancelRecording = () => {
+    if (!captureRef.current) return;
+    captureRef.current.cancelCapture();
+    captureRef.current = null;
+    setState("idle");
+    setDuration(0);
+    setIsPaused(false);
+    setMicLevel(0);
+    setSystemLevel(0);
+  };
+
   const handleAudioSetupReady = () => {
     setShowAudioSetup(false);
     // Re-check for virtual device
@@ -433,8 +464,17 @@ export default function Home() {
         {state === "recording" && (
           <div className="mb-6">
             <div className="flex items-center justify-center gap-2 mb-4">
-              <div className="w-3 h-3 bg-[var(--danger)] rounded-full recording-pulse" />
-              <span className="text-[var(--danger)] font-medium">Recording</span>
+              {isPaused ? (
+                <>
+                  <div className="w-3 h-3 bg-[var(--warning)] rounded-full" />
+                  <span className="text-[var(--warning)] font-medium">Paused</span>
+                </>
+              ) : (
+                <>
+                  <div className="w-3 h-3 bg-[var(--danger)] rounded-full recording-pulse" />
+                  <span className="text-[var(--danger)] font-medium">Recording</span>
+                </>
+              )}
               <span className="text-xs text-[var(--text-muted)] ml-1">
                 ({captureMode === "tab" ? "Browser tab" : "Desktop app"})
               </span>
@@ -444,26 +484,60 @@ export default function Home() {
             </div>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="bg-[var(--success-light)] border border-[rgba(34,197,94,0.2)] rounded-xl p-3">
-                <div className="w-2 h-2 bg-[var(--success)] rounded-full mx-auto mb-1.5" />
-                <div className="font-medium text-[var(--success)]">You (Mic)</div>
-                <div className="text-xs text-[var(--text-secondary)]">Capturing</div>
+                <div className="font-medium text-[var(--success)] mb-2">You (Mic)</div>
+                <div className="flex items-end justify-center gap-[3px] h-8">
+                  {Array.from({ length: 12 }).map((_, i) => {
+                    const barThreshold = (i + 1) / 12;
+                    const isActive = micLevel >= barThreshold;
+                    const barColor = barThreshold > 0.8 ? "bg-[var(--danger)]" : barThreshold > 0.5 ? "bg-[var(--warning)]" : "bg-[var(--success)]";
+                    return (
+                      <div
+                        key={i}
+                        className={`w-[4px] rounded-full transition-all duration-75 ${isActive ? barColor : "bg-[rgba(255,255,255,0.1)]"}`}
+                        style={{ height: `${((i + 1) / 12) * 100}%` }}
+                      />
+                    );
+                  })}
+                </div>
+                <div className="text-xs text-[var(--text-secondary)] mt-1.5">
+                  {micLevel > 0.02 ? "Receiving audio" : "Silent"}
+                </div>
               </div>
               <div className={`rounded-xl p-3 border ${
                 hasSystemAudio
                   ? "bg-[var(--success-light)] border-[rgba(34,197,94,0.2)]"
                   : "bg-[var(--warning-light)] border-[rgba(245,158,11,0.2)]"
               }`}>
-                <div className={`w-2 h-2 rounded-full mx-auto mb-1.5 ${
-                  hasSystemAudio ? "bg-[var(--success)]" : "bg-[var(--warning)]"
-                }`} />
-                <div className={`font-medium ${
+                <div className={`font-medium mb-2 ${
                   hasSystemAudio ? "text-[var(--success)]" : "text-[var(--warning)]"
                 }`}>
                   Other ({captureMode === "tab" ? "Tab" : "App"})
                 </div>
-                <div className="text-xs text-[var(--text-secondary)]">
-                  {hasSystemAudio ? "Capturing" : "Not shared"}
-                </div>
+                {hasSystemAudio ? (
+                  <>
+                    <div className="flex items-end justify-center gap-[3px] h-8">
+                      {Array.from({ length: 12 }).map((_, i) => {
+                        const barThreshold = (i + 1) / 12;
+                        const isActive = systemLevel >= barThreshold;
+                        const barColor = barThreshold > 0.8 ? "bg-[var(--danger)]" : barThreshold > 0.5 ? "bg-[var(--warning)]" : "bg-[var(--success)]";
+                        return (
+                          <div
+                            key={i}
+                            className={`w-[4px] rounded-full transition-all duration-75 ${isActive ? barColor : "bg-[rgba(255,255,255,0.1)]"}`}
+                            style={{ height: `${((i + 1) / 12) * 100}%` }}
+                          />
+                        );
+                      })}
+                    </div>
+                    <div className="text-xs text-[var(--text-secondary)] mt-1.5">
+                      {systemLevel > 0.02 ? "Receiving audio" : "Silent"}
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-8">
+                    <div className="text-xs text-[var(--text-secondary)]">Not shared</div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -573,12 +647,52 @@ export default function Home() {
           )}
 
           {state === "recording" && (
-            <button
-              onClick={stopRecording}
-              className="w-full py-3.5 bg-[var(--danger)] hover:bg-[var(--danger-hover)] rounded-xl font-medium transition-all hover:shadow-lg hover:shadow-[var(--danger)]/20"
-            >
-              Stop & Summarize
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={stopRecording}
+                className="w-full py-3.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded-xl font-medium transition-all hover:shadow-lg hover:shadow-[var(--accent)]/20 flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Stop & Summarize
+              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={togglePause}
+                  className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-1.5 ${
+                    isPaused
+                      ? "bg-[var(--success)] hover:bg-[var(--success)]/80 text-white"
+                      : "bg-[var(--bg-secondary)] hover:bg-[var(--bg-secondary)]/80 border border-[var(--border)] text-[var(--text-primary)]"
+                  }`}
+                >
+                  {isPaused ? (
+                    <>
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                      Resume
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                      </svg>
+                      Pause
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={cancelRecording}
+                  className="flex-1 py-2.5 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-1.5 border border-[var(--danger)]/30 text-[var(--danger)] hover:bg-[var(--danger)]/10"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Cancel
+                </button>
+              </div>
+            </div>
           )}
 
           {state === "processing" && (
