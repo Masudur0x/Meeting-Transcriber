@@ -153,6 +153,11 @@ export default function Home() {
       airtableKey: "",
       airtableBaseId: "",
     },
+    emailConfig: {
+      enabled: false,
+      recipients: "",
+      resendApiKey: "",
+    },
   });
 
   const captureRef = useRef<AudioCapture | null>(null);
@@ -319,6 +324,11 @@ export default function Home() {
           pipedriveKey: settings.pipedriveKey,
           airtableKey: settings.airtableKey,
           airtableBaseId: settings.airtableBaseId,
+        },
+        emailConfig: {
+          enabled: settings.emailEnabled,
+          recipients: settings.emailRecipients,
+          resendApiKey: settings.resendApiKey,
         },
       });
       setShowResult(true);

@@ -13,6 +13,9 @@ const KEYS = {
   PIPEDRIVE_API_KEY: "mt_pipedrive_key",
   AIRTABLE_API_KEY: "mt_airtable_key",
   AIRTABLE_BASE_ID: "mt_airtable_base_id",
+  EMAIL_ENABLED: "mt_email_enabled",
+  EMAIL_RECIPIENTS: "mt_email_recipients",
+  RESEND_API_KEY: "mt_resend_key",
   ONBOARDED: "mt_onboarded",
 } as const;
 
@@ -35,6 +38,9 @@ export interface AppSettings {
   pipedriveKey: string;
   airtableKey: string;
   airtableBaseId: string;
+  emailEnabled: boolean;
+  emailRecipients: string;
+  resendApiKey: string;
   onboarded: boolean;
 }
 
@@ -53,6 +59,9 @@ const DEFAULTS: AppSettings = {
   pipedriveKey: "",
   airtableKey: "",
   airtableBaseId: "",
+  emailEnabled: false,
+  emailRecipients: "",
+  resendApiKey: "",
   onboarded: false,
 };
 
@@ -74,6 +83,9 @@ export function getSettings(): AppSettings {
     pipedriveKey: localStorage.getItem(KEYS.PIPEDRIVE_API_KEY) || "",
     airtableKey: localStorage.getItem(KEYS.AIRTABLE_API_KEY) || "",
     airtableBaseId: localStorage.getItem(KEYS.AIRTABLE_BASE_ID) || "",
+    emailEnabled: localStorage.getItem(KEYS.EMAIL_ENABLED) === "true",
+    emailRecipients: localStorage.getItem(KEYS.EMAIL_RECIPIENTS) || "",
+    resendApiKey: localStorage.getItem(KEYS.RESEND_API_KEY) || "",
     onboarded: localStorage.getItem(KEYS.ONBOARDED) === "true",
   };
 }
@@ -94,12 +106,17 @@ export function saveSettings(settings: Partial<AppSettings>) {
     [KEYS.PIPEDRIVE_API_KEY]: settings.pipedriveKey,
     [KEYS.AIRTABLE_API_KEY]: settings.airtableKey,
     [KEYS.AIRTABLE_BASE_ID]: settings.airtableBaseId,
+    [KEYS.EMAIL_RECIPIENTS]: settings.emailRecipients,
+    [KEYS.RESEND_API_KEY]: settings.resendApiKey,
   };
 
   for (const [key, value] of Object.entries(map)) {
     if (value !== undefined) localStorage.setItem(key, value);
   }
 
+  if (settings.emailEnabled !== undefined) {
+    localStorage.setItem(KEYS.EMAIL_ENABLED, String(settings.emailEnabled));
+  }
   if (settings.onboarded !== undefined) {
     localStorage.setItem(KEYS.ONBOARDED, String(settings.onboarded));
   }
@@ -127,7 +144,10 @@ export function getSummarizationKey(): string {
 }
 
 export function hasRequiredKeys(): boolean {
-  return !!getTranscriptionKey() && !!getSummarizationKey();
+  const s = getSettings();
+  const hasApiKeys = !!getTranscriptionKey() && !!getSummarizationKey();
+  const hasDelivery = s.crmPlatform !== "none" || s.emailEnabled;
+  return hasApiKeys && hasDelivery;
 }
 
 export function getApiKeys() {

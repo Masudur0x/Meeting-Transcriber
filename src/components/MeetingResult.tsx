@@ -13,6 +13,12 @@ interface CrmCredentials {
   airtableBaseId: string;
 }
 
+interface EmailConfig {
+  enabled: boolean;
+  recipients: string;
+  resendApiKey: string;
+}
+
 interface MeetingResultProps {
   transcript: string;
   summary: string;
@@ -21,6 +27,7 @@ interface MeetingResultProps {
   otherSpoke: string;
   crmPlatform: CrmPlatform;
   crmCredentials: CrmCredentials;
+  emailConfig: EmailConfig;
   onClose: () => void;
 }
 
@@ -33,6 +40,58 @@ const CRM_NAMES: Record<CrmPlatform, string> = {
   none: "",
 };
 
+function renderMarkdownSummary(text: string) {
+  const lines = text.split("\n");
+  const elements: React.ReactNode[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (line.startsWith("## ")) {
+      elements.push(
+        <h3 key={i} className="text-sm font-bold text-[var(--accent)] mt-4 mb-2 first:mt-0">
+          {line.replace("## ", "")}
+        </h3>
+      );
+    } else if (line.startsWith("- [ ] ")) {
+      elements.push(
+        <div key={i} className="flex items-start gap-2 ml-2 my-0.5">
+          <span className="text-[var(--text-muted)] mt-0.5">&#9744;</span>
+          <span className="text-sm" dangerouslySetInnerHTML={{ __html: formatInline(line.replace("- [ ] ", "")) }} />
+        </div>
+      );
+    } else if (line.startsWith("- [x] ")) {
+      elements.push(
+        <div key={i} className="flex items-start gap-2 ml-2 my-0.5">
+          <span className="text-[var(--success)] mt-0.5">&#9745;</span>
+          <span className="text-sm line-through opacity-60" dangerouslySetInnerHTML={{ __html: formatInline(line.replace("- [x] ", "")) }} />
+        </div>
+      );
+    } else if (line.startsWith("- ")) {
+      elements.push(
+        <div key={i} className="flex items-start gap-2 ml-2 my-0.5">
+          <span className="text-[var(--accent)] mt-1 text-xs">&bull;</span>
+          <span className="text-sm" dangerouslySetInnerHTML={{ __html: formatInline(line.replace("- ", "")) }} />
+        </div>
+      );
+    } else if (line.trim() === "") {
+      // skip empty lines
+    } else {
+      elements.push(
+        <p key={i} className="text-sm my-1" dangerouslySetInnerHTML={{ __html: formatInline(line) }} />
+      );
+    }
+  }
+
+  return elements;
+}
+
+function formatInline(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white">$1</strong>')
+    .replace(/`(.+?)`/g, '<code class="bg-[var(--bg-secondary)] px-1 rounded text-xs">$1</code>');
+}
+
 export default function MeetingResult({
   transcript,
   summary,
@@ -41,11 +100,15 @@ export default function MeetingResult({
   otherSpoke,
   crmPlatform,
   crmCredentials,
+  emailConfig,
   onClose,
 }: MeetingResultProps) {
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
   const [saveError, setSaveError] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<"idle" | "success" | "error">("idle");
+  const [emailError, setEmailError] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
 
   const copyToClipboard = (text: string, label: string) => {
@@ -119,6 +182,48 @@ ${transcript}`;
     }
   };
 
+  const sendEmail = async () => {
+    if (!emailConfig.enabled) return;
+
+    setEmailSending(true);
+    setEmailStatus("idle");
+    setEmailError("");
+
+    const recipients = emailConfig.recipients.split(",").map(e => e.trim()).filter(Boolean);
+
+    try {
+      const res = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resendApiKey: emailConfig.resendApiKey,
+          recipients,
+          date: new Date().toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+          duration,
+          youSpoke,
+          otherSpoke,
+          summary,
+          transcript,
+        }),
+      });
+
+      if (res.ok) {
+        setEmailStatus("success");
+      } else {
+        const data = await res.json();
+        setEmailStatus("error");
+        setEmailError(data.error || "Failed to send email");
+      }
+    } catch {
+      setEmailStatus("error");
+      setEmailError("Network error. Please try again.");
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
+  const emailRecipientList = emailConfig.recipients.split(",").map(e => e.trim()).filter(Boolean);
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto slide-up">
@@ -157,7 +262,7 @@ ${transcript}`;
             </div>
           </div>
 
-          {/* Summary */}
+          {/* Summary — rendered with markdown */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-semibold text-sm">AI Summary</h3>
@@ -168,8 +273,8 @@ ${transcript}`;
                 {copied === "summary" ? "Copied!" : "Copy"}
               </button>
             </div>
-            <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-4 text-sm whitespace-pre-wrap leading-relaxed max-h-72 overflow-y-auto">
-              {summary}
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-4 leading-relaxed max-h-80 overflow-y-auto">
+              {renderMarkdownSummary(summary)}
             </div>
           </div>
 
@@ -189,7 +294,7 @@ ${transcript}`;
             </div>
           </div>
 
-          {/* Save Status */}
+          {/* Status Messages */}
           {saveStatus === "success" && (
             <div className="bg-[var(--success-light)] border border-[rgba(34,197,94,0.3)] rounded-xl p-3 text-center fade-in">
               <span className="text-sm text-[var(--success)] font-medium">
@@ -199,18 +304,32 @@ ${transcript}`;
           )}
           {saveStatus === "error" && (
             <div className="bg-[var(--danger-light)] border border-[rgba(239,68,68,0.3)] rounded-xl p-3 fade-in">
-              <span className="text-sm text-[var(--danger)] font-medium">Save failed: </span>
+              <span className="text-sm text-[var(--danger)] font-medium">CRM save failed: </span>
               <span className="text-xs text-[var(--text-secondary)]">{saveError}</span>
+            </div>
+          )}
+          {emailStatus === "success" && (
+            <div className="bg-[var(--success-light)] border border-[rgba(34,197,94,0.3)] rounded-xl p-3 text-center fade-in">
+              <span className="text-sm text-[var(--success)] font-medium">
+                Email sent to {emailRecipientList.length} recipient{emailRecipientList.length > 1 ? "s" : ""}!
+              </span>
+            </div>
+          )}
+          {emailStatus === "error" && (
+            <div className="bg-[var(--danger-light)] border border-[rgba(239,68,68,0.3)] rounded-xl p-3 fade-in">
+              <span className="text-sm text-[var(--danger)] font-medium">Email failed: </span>
+              <span className="text-xs text-[var(--text-secondary)]">{emailError}</span>
             </div>
           )}
         </div>
 
         {/* Footer Actions */}
         <div className="sticky bottom-0 bg-[var(--bg-card)] border-t border-[var(--border)] p-6 pt-4 rounded-b-2xl">
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-2">
+            {/* Download */}
             <button
               onClick={downloadAsText}
-              className="flex-1 px-4 py-2.5 border border-[var(--border)] rounded-xl text-sm hover:bg-[var(--bg-secondary)] transition-colors flex items-center justify-center gap-2"
+              className="flex-1 min-w-[120px] px-4 py-2.5 border border-[var(--border)] rounded-xl text-sm hover:bg-[var(--bg-secondary)] transition-colors flex items-center justify-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -218,11 +337,12 @@ ${transcript}`;
               Download
             </button>
 
+            {/* Save to CRM */}
             {crmPlatform !== "none" && (
               <button
                 onClick={saveToCrm}
                 disabled={saving || saveStatus === "success"}
-                className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${
                   saveStatus === "success"
                     ? "bg-[var(--success)] text-white"
                     : "bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white"
@@ -239,13 +359,48 @@ ${transcript}`;
                     Saved!
                   </>
                 ) : saving ? (
-                  `Saving to ${CRM_NAMES[crmPlatform]}...`
+                  `Saving...`
                 ) : (
                   `Save to ${CRM_NAMES[crmPlatform]}`
                 )}
               </button>
             )}
 
+            {/* Send Email */}
+            {emailConfig.enabled && (
+              <button
+                onClick={sendEmail}
+                disabled={emailSending || emailStatus === "success"}
+                className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                  emailStatus === "success"
+                    ? "bg-[var(--success)] text-white"
+                    : "bg-gradient-to-r from-[var(--accent)] to-purple-500 hover:opacity-90 text-white"
+                } disabled:opacity-60 disabled:cursor-not-allowed`}
+              >
+                {emailSending && (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full spinner" />
+                )}
+                {emailStatus === "success" ? (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Sent!
+                  </>
+                ) : emailSending ? (
+                  "Sending..."
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    Email ({emailRecipientList.length})
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* Close */}
             <button
               onClick={onClose}
               className="px-4 py-2.5 border border-[var(--border)] rounded-xl text-sm hover:bg-[var(--bg-secondary)] transition-colors"

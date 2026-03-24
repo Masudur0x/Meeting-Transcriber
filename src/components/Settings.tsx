@@ -103,7 +103,7 @@ const CRM_OPTIONS: { id: CrmPlatform; name: string; icon: string; description: s
   { id: "salesforce", name: "Salesforce", icon: "☁️", description: "Enterprise CRM" },
   { id: "pipedrive", name: "Pipedrive", icon: "🟢", description: "Sales pipeline CRM" },
   { id: "airtable", name: "Airtable", icon: "📋", description: "Flexible database" },
-  { id: "none", name: "None (Download Only)", icon: "💾", description: "Save as local files" },
+  { id: "none", name: "No CRM", icon: "💾", description: "Skip CRM integration" },
 ];
 
 /* ── Help tooltip data per provider ────────────────────── */
@@ -214,6 +214,12 @@ export default function Settings({ onClose, onSave, isOnboarding = false }: Sett
   const [pipedriveKey, setPipedriveKey] = useState("");
   const [airtableKey, setAirtableKey] = useState("");
   const [airtableBaseId, setAirtableBaseId] = useState("");
+
+  const [emailEnabled, setEmailEnabled] = useState(false);
+  const [emailRecipients, setEmailRecipients] = useState("");
+  const [resendApiKey, setResendApiKey] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+
   const [showPassword, setShowPassword] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -232,6 +238,9 @@ export default function Settings({ onClose, onSave, isOnboarding = false }: Sett
     setPipedriveKey(s.pipedriveKey);
     setAirtableKey(s.airtableKey);
     setAirtableBaseId(s.airtableBaseId);
+    setEmailEnabled(s.emailEnabled);
+    setEmailRecipients(s.emailRecipients);
+    setResendApiKey(s.resendApiKey);
   }, []);
 
   // Figure out which API keys are needed
@@ -247,7 +256,29 @@ export default function Settings({ onClose, onSave, isOnboarding = false }: Sett
     deepseek: deepseekKey,
   };
 
-  const canSave = [...neededKeys].every((k) => keyValues[k]?.trim());
+  const hasApiKeys = [...neededKeys].every((k) => keyValues[k]?.trim());
+  const hasDelivery = crmPlatform !== "none" || emailEnabled;
+  const emailValid = !emailEnabled || (emailRecipients.trim() !== "" && resendApiKey.trim() !== "");
+  const canSave = hasApiKeys && hasDelivery && emailValid;
+
+  const emailList = emailRecipients.split(",").map(e => e.trim()).filter(Boolean);
+
+  const addEmail = () => {
+    const email = newEmail.trim().toLowerCase();
+    if (!email || !email.includes("@")) return;
+    if (emailList.includes(email)) {
+      setNewEmail("");
+      return;
+    }
+    const updated = emailList.length > 0 ? emailRecipients + ", " + email : email;
+    setEmailRecipients(updated);
+    setNewEmail("");
+  };
+
+  const removeEmail = (emailToRemove: string) => {
+    const updated = emailList.filter(e => e !== emailToRemove).join(", ");
+    setEmailRecipients(updated);
+  };
 
   const handleSave = () => {
     saveSettings({
@@ -265,6 +296,9 @@ export default function Settings({ onClose, onSave, isOnboarding = false }: Sett
       pipedriveKey: pipedriveKey.trim(),
       airtableKey: airtableKey.trim(),
       airtableBaseId: airtableBaseId.trim(),
+      emailEnabled,
+      emailRecipients: emailRecipients.trim(),
+      resendApiKey: resendApiKey.trim(),
       onboarded: true,
     });
     onSave();
@@ -295,14 +329,14 @@ export default function Settings({ onClose, onSave, isOnboarding = false }: Sett
                 {isOnboarding ? "Welcome! Let's set up" : "Settings"}
               </h2>
               <p className="text-[var(--text-secondary)] text-sm mt-1">
-                Choose your AI providers and enter your keys. Stored in your browser only.
+                {isOnboarding
+                  ? "Choose your AI providers and delivery method. Takes ~2 minutes."
+                  : "Update your AI providers, API keys, and delivery settings."}
               </p>
             </div>
-            {!isOnboarding && (
-              <button onClick={onClose} className="text-[var(--text-muted)] hover:text-white text-2xl">
-                &times;
-              </button>
-            )}
+            <button onClick={onClose} className="text-[var(--text-muted)] hover:text-white text-2xl">
+              &times;
+            </button>
           </div>
         </div>
 
@@ -467,12 +501,140 @@ export default function Settings({ onClose, onSave, isOnboarding = false }: Sett
 
           <div className="border-t border-[var(--border)]" />
 
-          {/* ── Section: CRM Platform ──────────────────────── */}
+          {/* ── Section: Delivery — CRM + Email ────────────── */}
           <div>
-            <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">
-              Where to save meeting notes
+            <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1">
+              Step 4: Where to deliver summaries
+              <span className="text-[var(--danger)] ml-0.5">*</span>
             </h3>
+            <p className="text-xs text-[var(--text-muted)] mb-3">
+              Choose at least one: CRM, Email, or both. You can always download as a file too.
+            </p>
 
+            {!hasDelivery && (
+              <div className="bg-[var(--danger-light)] border border-[rgba(239,68,68,0.3)] rounded-xl p-3 mb-3">
+                <span className="text-xs text-[var(--danger)] font-medium">
+                  Please select at least one delivery method (CRM or Email)
+                </span>
+              </div>
+            )}
+
+            {/* Email Toggle */}
+            <div className={`mb-4 p-4 rounded-xl border transition-all ${
+              emailEnabled
+                ? "border-[var(--accent)] bg-[var(--accent-light)]"
+                : "border-[var(--border)] bg-[var(--bg-secondary)]"
+            }`}>
+              <button
+                type="button"
+                onClick={() => setEmailEnabled(!emailEnabled)}
+                className="w-full flex items-center justify-between"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">📧</span>
+                  <div className="text-left">
+                    <div className="text-sm font-semibold">Email Summary</div>
+                    <div className="text-[10px] text-[var(--text-muted)]">Send structured summary to one or more email addresses</div>
+                  </div>
+                </div>
+                <div className={`w-10 h-6 rounded-full transition-colors relative ${
+                  emailEnabled ? "bg-[var(--accent)]" : "bg-[var(--border)]"
+                }`}>
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                    emailEnabled ? "left-5" : "left-1"
+                  }`} />
+                </div>
+              </button>
+
+              {emailEnabled && (
+                <div className="mt-4 space-y-3 fade-in">
+                  {/* Email recipients */}
+                  <div>
+                    <label className="text-xs font-medium mb-1.5 block text-[var(--text-secondary)]">
+                      Recipients
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="email"
+                        value={newEmail}
+                        onChange={(e) => setNewEmail(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addEmail(); }}}
+                        placeholder="email@example.com"
+                        className="flex-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--accent)] transition-colors"
+                      />
+                      <button
+                        type="button"
+                        onClick={addEmail}
+                        className="px-3 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded-lg text-sm font-medium transition-colors"
+                      >
+                        Add
+                      </button>
+                    </div>
+                    {emailList.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {emailList.map((email) => (
+                          <span
+                            key={email}
+                            className="inline-flex items-center gap-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-full px-2.5 py-1 text-xs"
+                          >
+                            {email}
+                            <button
+                              type="button"
+                              onClick={() => removeEmail(email)}
+                              className="text-[var(--text-muted)] hover:text-[var(--danger)] ml-0.5"
+                            >
+                              &times;
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {emailEnabled && emailList.length === 0 && (
+                      <p className="text-[10px] text-[var(--danger)] mt-1">Add at least one email address</p>
+                    )}
+                  </div>
+
+                  {/* Resend API key */}
+                  <div>
+                    <label className="flex items-center text-xs font-medium mb-1.5 text-[var(--text-secondary)]">
+                      Resend API Key
+                      <span className="text-[var(--danger)] ml-0.5">*</span>
+                      <HelpTooltip
+                        title="How to get Resend API Key"
+                        steps={[
+                          "Go to resend.com and sign up (free)",
+                          "Go to 'API Keys' in the sidebar",
+                          "Click 'Create API Key'",
+                          "Copy the key (starts with re_...)",
+                          "Free tier: 100 emails/day, 3,000/month",
+                        ]}
+                        exampleKey="re_xxxxxxxx_xxxxxxxxxxxxxxxxxxxx"
+                        linkText="Open Resend Dashboard"
+                        linkUrl="https://resend.com/api-keys"
+                      />
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword.resend ? "text" : "password"}
+                        value={resendApiKey}
+                        onChange={(e) => setResendApiKey(e.target.value)}
+                        placeholder="re_..."
+                        className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--accent)] pr-10 transition-colors"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => toggleShow("resend")}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-white text-xs"
+                      >
+                        {showPassword.resend ? "Hide" : "Show"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* CRM Platform */}
             <div className="grid grid-cols-2 gap-2">
               {CRM_OPTIONS.map((option) => (
                 <button
@@ -675,22 +837,25 @@ export default function Settings({ onClose, onSave, isOnboarding = false }: Sett
         {/* Footer */}
         <div className="sticky bottom-0 bg-[var(--bg-card)] border-t border-[var(--border)] p-6 pt-4 rounded-b-2xl">
           <div className="flex gap-3">
-            {!isOnboarding && (
-              <button
-                onClick={onClose}
-                className="flex-1 px-4 py-2.5 border border-[var(--border)] rounded-xl text-sm hover:bg-[var(--bg-secondary)] transition-colors"
-              >
-                Cancel
-              </button>
-            )}
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-2.5 border border-[var(--border)] rounded-xl text-sm hover:bg-[var(--bg-secondary)] transition-colors"
+            >
+              Cancel
+            </button>
             <button
               onClick={handleSave}
               disabled={!canSave}
-              className={`${isOnboarding ? "w-full" : "flex-1"} px-4 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}
+              className="flex-1 px-4 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded-xl text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isOnboarding ? "Get Started" : "Save Settings"}
             </button>
           </div>
+          {!canSave && (
+            <p className="text-[10px] text-[var(--text-muted)] text-center mt-2">
+              {!hasApiKeys ? "Enter all required API keys" : !hasDelivery ? "Select at least one delivery method (CRM or Email)" : "Fill in all email fields"}
+            </p>
+          )}
         </div>
       </div>
     </div>

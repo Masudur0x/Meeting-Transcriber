@@ -3,23 +3,43 @@ import { NextRequest, NextResponse } from "next/server";
 export const maxDuration = 120;
 
 const SUMMARY_PROMPT = (youSpoke: string, otherSpoke: string, transcript: string) =>
-  `You are a meeting notes assistant. Analyze this meeting transcript and provide a structured summary.
+  `You are a professional meeting notes assistant. Analyze this meeting transcript and provide a well-structured summary using clear markdown formatting.
 
 The transcript has two speakers labeled "You" and "Other".
-- You spoke for approximately ${youSpoke} minutes
-- Other spoke for approximately ${otherSpoke} minutes
+- You spoke for approximately ${youSpoke}
+- Other spoke for approximately ${otherSpoke}
 
 Transcript:
 ${transcript}
 
-Please provide:
-1. **Meeting Summary** (2-3 sentences)
-2. **Key Points** (bullet points of important topics discussed)
-3. **Decisions Made** (if any)
-4. **Action Items** (tasks mentioned with who is responsible)
-5. **Follow-ups Needed** (anything that needs future attention)
+Respond with EXACTLY this format (use markdown headers and bullet points):
 
-Keep it concise and professional. If the meeting was in a non-English language, provide the summary in BOTH the original language AND English.`;
+## Meeting Overview
+- **Date context**: (mention any dates/deadlines discussed)
+- **Duration**: You spoke ~${youSpoke}, Other spoke ~${otherSpoke}
+- **Purpose**: (1 sentence about what the meeting was about)
+
+## Key Discussion Points
+- (Each major topic discussed, as a clear bullet point)
+- (Be specific — include names, numbers, dates mentioned)
+
+## Decisions Made
+- (Any decisions or agreements reached)
+- (If none, write "No explicit decisions were made")
+
+## Action Items
+- [ ] (Task description) — **Owner**: (who is responsible)
+- [ ] (Task description) — **Owner**: (who is responsible)
+- (If none, write "No action items identified")
+
+## Follow-ups Needed
+- (Items that need future attention or discussion)
+- (Deadlines or next steps mentioned)
+
+## Notable Quotes
+- (1-2 important or notable things said, with speaker attribution)
+
+Keep each section concise. Use bullet points, not paragraphs. Be specific with names, dates, and numbers. If the meeting was in a non-English language, provide the summary in BOTH the original language AND English.`;
 
 export async function POST(request: NextRequest) {
   try {
