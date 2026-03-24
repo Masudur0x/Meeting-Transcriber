@@ -217,7 +217,6 @@ export default function Settings({ onClose, onSave, isOnboarding = false }: Sett
 
   const [emailEnabled, setEmailEnabled] = useState(false);
   const [emailRecipients, setEmailRecipients] = useState("");
-  const [resendApiKey, setResendApiKey] = useState("");
   const [newEmail, setNewEmail] = useState("");
 
   const [showPassword, setShowPassword] = useState<Record<string, boolean>>({});
@@ -240,7 +239,6 @@ export default function Settings({ onClose, onSave, isOnboarding = false }: Sett
     setAirtableBaseId(s.airtableBaseId);
     setEmailEnabled(s.emailEnabled);
     setEmailRecipients(s.emailRecipients);
-    setResendApiKey(s.resendApiKey);
   }, []);
 
   // Figure out which API keys are needed
@@ -258,7 +256,7 @@ export default function Settings({ onClose, onSave, isOnboarding = false }: Sett
 
   const hasApiKeys = [...neededKeys].every((k) => keyValues[k]?.trim());
   const hasDelivery = crmPlatform !== "none" || emailEnabled;
-  const emailValid = !emailEnabled || (emailRecipients.trim() !== "" && resendApiKey.trim() !== "");
+  const emailValid = !emailEnabled || emailRecipients.trim() !== "";
   const canSave = hasApiKeys && hasDelivery && emailValid;
 
   const emailList = emailRecipients.split(",").map(e => e.trim()).filter(Boolean);
@@ -298,7 +296,6 @@ export default function Settings({ onClose, onSave, isOnboarding = false }: Sett
       airtableBaseId: airtableBaseId.trim(),
       emailEnabled,
       emailRecipients: emailRecipients.trim(),
-      resendApiKey: resendApiKey.trim(),
       onboarded: true,
     });
     onSave();
@@ -594,42 +591,6 @@ export default function Settings({ onClose, onSave, isOnboarding = false }: Sett
                     )}
                   </div>
 
-                  {/* Resend API key */}
-                  <div>
-                    <label className="flex items-center text-xs font-medium mb-1.5 text-[var(--text-secondary)]">
-                      Resend API Key
-                      <span className="text-[var(--danger)] ml-0.5">*</span>
-                      <HelpTooltip
-                        title="How to get Resend API Key"
-                        steps={[
-                          "Go to resend.com and sign up (free)",
-                          "Go to 'API Keys' in the sidebar",
-                          "Click 'Create API Key'",
-                          "Copy the key (starts with re_...)",
-                          "Free tier: 100 emails/day, 3,000/month",
-                        ]}
-                        exampleKey="re_xxxxxxxx_xxxxxxxxxxxxxxxxxxxx"
-                        linkText="Open Resend Dashboard"
-                        linkUrl="https://resend.com/api-keys"
-                      />
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showPassword.resend ? "text" : "password"}
-                        value={resendApiKey}
-                        onChange={(e) => setResendApiKey(e.target.value)}
-                        placeholder="re_..."
-                        className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[var(--accent)] pr-10 transition-colors"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => toggleShow("resend")}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-white text-xs"
-                      >
-                        {showPassword.resend ? "Hide" : "Show"}
-                      </button>
-                    </div>
-                  </div>
                 </div>
               )}
             </div>

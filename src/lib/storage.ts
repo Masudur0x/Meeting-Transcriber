@@ -15,7 +15,6 @@ const KEYS = {
   AIRTABLE_BASE_ID: "mt_airtable_base_id",
   EMAIL_ENABLED: "mt_email_enabled",
   EMAIL_RECIPIENTS: "mt_email_recipients",
-  RESEND_API_KEY: "mt_resend_key",
   ONBOARDED: "mt_onboarded",
 } as const;
 
@@ -40,7 +39,6 @@ export interface AppSettings {
   airtableBaseId: string;
   emailEnabled: boolean;
   emailRecipients: string;
-  resendApiKey: string;
   onboarded: boolean;
 }
 
@@ -61,7 +59,6 @@ const DEFAULTS: AppSettings = {
   airtableBaseId: "",
   emailEnabled: false,
   emailRecipients: "",
-  resendApiKey: "",
   onboarded: false,
 };
 
@@ -85,7 +82,6 @@ export function getSettings(): AppSettings {
     airtableBaseId: localStorage.getItem(KEYS.AIRTABLE_BASE_ID) || "",
     emailEnabled: localStorage.getItem(KEYS.EMAIL_ENABLED) === "true",
     emailRecipients: localStorage.getItem(KEYS.EMAIL_RECIPIENTS) || "",
-    resendApiKey: localStorage.getItem(KEYS.RESEND_API_KEY) || "",
     onboarded: localStorage.getItem(KEYS.ONBOARDED) === "true",
   };
 }
@@ -107,7 +103,6 @@ export function saveSettings(settings: Partial<AppSettings>) {
     [KEYS.AIRTABLE_API_KEY]: settings.airtableKey,
     [KEYS.AIRTABLE_BASE_ID]: settings.airtableBaseId,
     [KEYS.EMAIL_RECIPIENTS]: settings.emailRecipients,
-    [KEYS.RESEND_API_KEY]: settings.resendApiKey,
   };
 
   for (const [key, value] of Object.entries(map)) {

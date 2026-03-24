@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 export const maxDuration = 30;
 
 interface EmailPayload {
-  resendApiKey: string;
   recipients: string[];
   date: string;
   duration: string;
@@ -31,12 +30,14 @@ function markdownToHtml(md: string): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const body: EmailPayload = await request.json();
-    const { resendApiKey, recipients, date, duration, youSpoke, otherSpoke, summary, transcript } = body;
-
+    const resendApiKey = process.env.RESEND_API_KEY;
     if (!resendApiKey) {
-      return NextResponse.json({ error: "Resend API key is required" }, { status: 400 });
+      return NextResponse.json({ error: "Email service is not configured. Please set RESEND_API_KEY environment variable." }, { status: 500 });
     }
+
+    const body: EmailPayload = await request.json();
+    const { recipients, date, duration, youSpoke, otherSpoke, summary, transcript } = body;
+
     if (!recipients || recipients.length === 0) {
       return NextResponse.json({ error: "At least one email recipient is required" }, { status: 400 });
     }

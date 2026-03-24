@@ -159,7 +159,6 @@ export default function Home() {
     emailConfig: {
       enabled: false,
       recipients: "",
-      resendApiKey: "",
     },
   });
 
@@ -337,7 +336,6 @@ export default function Home() {
         emailConfig: {
           enabled: settings.emailEnabled,
           recipients: settings.emailRecipients,
-          resendApiKey: settings.resendApiKey,
         },
       });
       setShowResult(true);

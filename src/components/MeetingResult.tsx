@@ -16,7 +16,6 @@ interface CrmCredentials {
 interface EmailConfig {
   enabled: boolean;
   recipients: string;
-  resendApiKey: string;
 }
 
 interface MeetingResultProps {
@@ -196,7 +195,6 @@ ${transcript}`;
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          resendApiKey: emailConfig.resendApiKey,
           recipients,
           date: new Date().toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
           duration,
