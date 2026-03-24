@@ -240,7 +240,18 @@ export default function Home() {
         micForm.append("speaker", "You");
         micForm.append("provider", keys.transcriptionProvider);
         const micRes = await fetch("/api/transcribe", { method: "POST", body: micForm });
-        if (micRes.ok) youTranscript = await micRes.json();
+        if (micRes.ok) {
+          youTranscript = await micRes.json();
+        } else {
+          const errData = await micRes.json().catch(() => ({ error: micRes.statusText }));
+          throw new Error(`Mic transcription failed: ${errData.error || micRes.statusText}`);
+        }
+      } else {
+        throw new Error(
+          `Microphone audio is empty (${result.micBlob?.size || 0} bytes). ` +
+          "Check that your browser has microphone permission in macOS: " +
+          "System Preferences → Security & Privacy → Privacy → Microphone."
+        );
       }
 
       let otherTranscript: TranscriptionResult | null = null;
@@ -252,14 +263,19 @@ export default function Home() {
         sysForm.append("speaker", "Other");
         sysForm.append("provider", keys.transcriptionProvider);
         const sysRes = await fetch("/api/transcribe", { method: "POST", body: sysForm });
-        if (sysRes.ok) otherTranscript = await sysRes.json();
+        if (sysRes.ok) {
+          otherTranscript = await sysRes.json();
+        } else {
+          const errData = await sysRes.json().catch(() => ({ error: sysRes.statusText }));
+          console.warn("Other audio transcription failed:", errData.error);
+        }
       }
 
       setProcessingStep("merging");
       const fullTranscript = mergeTranscripts(youTranscript, otherTranscript);
 
       if (!fullTranscript.trim()) {
-        alert("No speech detected in the recording.");
+        alert("No speech detected in the recording. The audio was captured but the transcription API returned empty text. Try speaking louder or check your API key.");
         setState("idle");
         return;
       }
