@@ -56,15 +56,6 @@ const TRANSCRIPTION_PROVIDERS: ProviderOption[] = [
     bestFor: "Very long meetings (3+ hours), tight budget",
     description: "Ultra cheap via multimodal AI. Good for long meetings where cost adds up.",
   },
-  {
-    id: "openrouter",
-    name: "OpenRouter",
-    badge: "Any Model",
-    badgeColor: "#a78bfa",
-    cost: "varies",
-    bestFor: "Flexibility — pick any multimodal model you want",
-    description: "Route to any AI model via one API key. Use any multimodal model that supports audio.",
-  },
 ];
 
 const SUMMARIZATION_PROVIDERS: ProviderOption[] = [
@@ -214,7 +205,6 @@ function getNeededKeyForTranscription(provider: TranscriptionProvider): string {
     case "openai_whisper": return "openai";
     case "groq_whisper": return "groq";
     case "google_gemini": return "google_gemini";
-    case "openrouter": return "openrouter";
   }
 }
 
@@ -356,7 +346,7 @@ export default function Settings({ onClose, onSave, isOnboarding = false }: Sett
     openrouter: { label: "OpenRouter API Key", value: openrouterKey, setter: setOpenrouterKey, placeholder: "sk-or-v1-...", helpKey: "openrouter" },
   };
 
-  const showOpenRouterModel = transcriptionProvider === "openrouter" || summarizationProvider === "openrouter";
+  const showOpenRouterModel = summarizationProvider === "openrouter";
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">

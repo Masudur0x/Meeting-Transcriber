@@ -9,7 +9,6 @@ export async function POST(request: NextRequest) {
     const apiKey = formData.get("apiKey") as string;
     const speaker = formData.get("speaker") as string;
     const provider = (formData.get("provider") as string) || "openai_whisper";
-    const openrouterModel = (formData.get("openrouterModel") as string) || "google/gemini-2.0-flash-exp";
 
     if (!audioFile || !apiKey) {
       return NextResponse.json(
@@ -25,8 +24,6 @@ export async function POST(request: NextRequest) {
         return await transcribeWithGroq(audioFile, apiKey, speaker);
       case "google_gemini":
         return await transcribeWithGemini(audioFile, apiKey, speaker);
-      case "openrouter":
-        return await transcribeWithOpenRouter(audioFile, apiKey, speaker, openrouterModel);
       default:
         return NextResponse.json(
           { error: `Unknown transcription provider: ${provider}` },
@@ -203,64 +200,5 @@ async function transcribeWithGemini(
       speaker,
       text: rawText,
     });
-  }
-}
-
-/* ── OpenRouter (multimodal LLM) ─────────────────────── */
-
-async function transcribeWithOpenRouter(
-  audioFile: File,
-  apiKey: string,
-  speaker: string,
-  model: string
-) {
-  const arrayBuffer = await audioFile.arrayBuffer();
-  const base64Audio = Buffer.from(arrayBuffer).toString("base64");
-  const mimeType = audioFile.type || "audio/webm";
-
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-      "HTTP-Referer": "https://meeting-transcriber-saas.vercel.app",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_audio",
-              input_audio: { data: base64Audio, format: mimeType.split("/")[1] || "webm" },
-            },
-            {
-              type: "text",
-              text: 'Transcribe this audio precisely. Return ONLY a JSON object with this format: {"text": "full transcription text", "segments": [{"start": 0.0, "end": 2.5, "text": "segment text"}]}. Do not include any markdown formatting or code blocks, just raw JSON.',
-            },
-          ],
-        },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    return NextResponse.json(
-      { error: `OpenRouter transcription error: ${error}` },
-      { status: response.status }
-    );
-  }
-
-  const result = await response.json();
-  const rawText = result.choices?.[0]?.message?.content || "";
-
-  try {
-    const cleaned = rawText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    const parsed = JSON.parse(cleaned);
-    return NextResponse.json({ speaker, text: parsed.text, segments: parsed.segments });
-  } catch {
-    return NextResponse.json({ speaker, text: rawText });
   }
 }

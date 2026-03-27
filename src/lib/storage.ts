@@ -20,7 +20,7 @@ const KEYS = {
   ONBOARDED: "mt_onboarded",
 } as const;
 
-export type TranscriptionProvider = "openai_whisper" | "groq_whisper" | "google_gemini" | "openrouter";
+export type TranscriptionProvider = "openai_whisper" | "groq_whisper" | "google_gemini";
 export type SummarizationProvider = "anthropic" | "openai" | "google_gemini" | "deepseek" | "openrouter";
 export type CrmPlatform = "google_sheets" | "hubspot" | "salesforce" | "pipedrive" | "airtable" | "none";
 
@@ -134,7 +134,6 @@ export function getTranscriptionKey(): string {
     case "openai_whisper": return s.openaiKey;
     case "groq_whisper": return s.groqKey;
     case "google_gemini": return s.googleGeminiKey;
-    case "openrouter": return s.openrouterKey;
   }
 }
 
