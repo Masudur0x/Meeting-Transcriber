@@ -4,6 +4,8 @@ const KEYS = {
   GOOGLE_GEMINI_API_KEY: "mt_gemini_key",
   GROQ_API_KEY: "mt_groq_key",
   DEEPSEEK_API_KEY: "mt_deepseek_key",
+  OPENROUTER_API_KEY: "mt_openrouter_key",
+  OPENROUTER_MODEL: "mt_openrouter_model",
   TRANSCRIPTION_PROVIDER: "mt_transcription_provider",
   SUMMARIZATION_PROVIDER: "mt_summarization_provider",
   CRM_PLATFORM: "mt_crm_platform",
@@ -18,8 +20,8 @@ const KEYS = {
   ONBOARDED: "mt_onboarded",
 } as const;
 
-export type TranscriptionProvider = "openai_whisper" | "groq_whisper" | "google_gemini";
-export type SummarizationProvider = "anthropic" | "openai" | "google_gemini" | "deepseek";
+export type TranscriptionProvider = "openai_whisper" | "groq_whisper" | "google_gemini" | "openrouter";
+export type SummarizationProvider = "anthropic" | "openai" | "google_gemini" | "deepseek" | "openrouter";
 export type CrmPlatform = "google_sheets" | "hubspot" | "salesforce" | "pipedrive" | "airtable" | "none";
 
 export interface AppSettings {
@@ -30,6 +32,8 @@ export interface AppSettings {
   googleGeminiKey: string;
   groqKey: string;
   deepseekKey: string;
+  openrouterKey: string;
+  openrouterModel: string;
   crmPlatform: CrmPlatform;
   googleSheetsId: string;
   hubspotKey: string;
@@ -50,6 +54,8 @@ const DEFAULTS: AppSettings = {
   googleGeminiKey: "",
   groqKey: "",
   deepseekKey: "",
+  openrouterKey: "",
+  openrouterModel: "openai/gpt-4o",
   crmPlatform: "none",
   googleSheetsId: "",
   hubspotKey: "",
@@ -73,6 +79,8 @@ export function getSettings(): AppSettings {
     googleGeminiKey: localStorage.getItem(KEYS.GOOGLE_GEMINI_API_KEY) || "",
     groqKey: localStorage.getItem(KEYS.GROQ_API_KEY) || "",
     deepseekKey: localStorage.getItem(KEYS.DEEPSEEK_API_KEY) || "",
+    openrouterKey: localStorage.getItem(KEYS.OPENROUTER_API_KEY) || "",
+    openrouterModel: localStorage.getItem(KEYS.OPENROUTER_MODEL) || "openai/gpt-4o",
     crmPlatform: (localStorage.getItem(KEYS.CRM_PLATFORM) as CrmPlatform) || "none",
     googleSheetsId: localStorage.getItem(KEYS.GOOGLE_SHEETS_ID) || "",
     hubspotKey: localStorage.getItem(KEYS.HUBSPOT_API_KEY) || "",
@@ -93,6 +101,8 @@ export function saveSettings(settings: Partial<AppSettings>) {
     [KEYS.GOOGLE_GEMINI_API_KEY]: settings.googleGeminiKey,
     [KEYS.GROQ_API_KEY]: settings.groqKey,
     [KEYS.DEEPSEEK_API_KEY]: settings.deepseekKey,
+    [KEYS.OPENROUTER_API_KEY]: settings.openrouterKey,
+    [KEYS.OPENROUTER_MODEL]: settings.openrouterModel,
     [KEYS.TRANSCRIPTION_PROVIDER]: settings.transcriptionProvider,
     [KEYS.SUMMARIZATION_PROVIDER]: settings.summarizationProvider,
     [KEYS.CRM_PLATFORM]: settings.crmPlatform,
@@ -124,6 +134,7 @@ export function getTranscriptionKey(): string {
     case "openai_whisper": return s.openaiKey;
     case "groq_whisper": return s.groqKey;
     case "google_gemini": return s.googleGeminiKey;
+    case "openrouter": return s.openrouterKey;
   }
 }
 
@@ -135,6 +146,7 @@ export function getSummarizationKey(): string {
     case "openai": return s.openaiKey;
     case "google_gemini": return s.googleGeminiKey;
     case "deepseek": return s.deepseekKey;
+    case "openrouter": return s.openrouterKey;
   }
 }
 
@@ -152,6 +164,7 @@ export function getApiKeys() {
     summarizationKey: getSummarizationKey(),
     transcriptionProvider: s.transcriptionProvider,
     summarizationProvider: s.summarizationProvider,
+    openrouterModel: s.openrouterModel,
     sheetsId: s.googleSheetsId,
   };
 }

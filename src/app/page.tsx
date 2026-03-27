@@ -252,6 +252,7 @@ export default function Home() {
         micForm.append("apiKey", keys.transcriptionKey);
         micForm.append("speaker", "You");
         micForm.append("provider", keys.transcriptionProvider);
+        micForm.append("openrouterModel", keys.openrouterModel);
         const micRes = await fetch("/api/transcribe", { method: "POST", body: micForm });
         if (micRes.ok) {
           youTranscript = await micRes.json();
@@ -275,6 +276,7 @@ export default function Home() {
         sysForm.append("apiKey", keys.transcriptionKey);
         sysForm.append("speaker", "Other");
         sysForm.append("provider", keys.transcriptionProvider);
+        sysForm.append("openrouterModel", keys.openrouterModel);
         const sysRes = await fetch("/api/transcribe", { method: "POST", body: sysForm });
         if (sysRes.ok) {
           otherTranscript = await sysRes.json();
@@ -304,6 +306,7 @@ export default function Home() {
           transcript: fullTranscript,
           apiKey: keys.summarizationKey,
           provider: keys.summarizationProvider,
+          openrouterModel: keys.openrouterModel,
           youSpoke,
           otherSpoke,
         }),

@@ -44,7 +44,7 @@ Keep each section concise. Use bullet points, not paragraphs. Be specific with n
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { transcript, apiKey, youSpoke, otherSpoke, provider = "anthropic" } = body;
+    const { transcript, apiKey, youSpoke, otherSpoke, provider = "anthropic", openrouterModel } = body;
 
     if (!transcript || !apiKey) {
       return NextResponse.json({ error: "Missing transcript or API key" }, { status: 400 });
@@ -61,6 +61,8 @@ export async function POST(request: NextRequest) {
         return await summarizeWithGemini(prompt, apiKey);
       case "deepseek":
         return await summarizeWithDeepseek(prompt, apiKey);
+      case "openrouter":
+        return await summarizeWithOpenRouter(prompt, apiKey, openrouterModel || "openai/gpt-4o");
       default:
         return NextResponse.json({ error: `Unknown provider: ${provider}` }, { status: 400 });
     }
@@ -115,6 +117,32 @@ async function summarizeWithOpenAI(prompt: string, apiKey: string) {
   if (!response.ok) {
     const error = await response.text();
     return NextResponse.json({ error: `OpenAI error: ${error}` }, { status: response.status });
+  }
+
+  const result = await response.json();
+  return NextResponse.json({ summary: result.choices[0].message.content });
+}
+
+/* ── OpenRouter ────────────────────────────────────────── */
+
+async function summarizeWithOpenRouter(prompt: string, apiKey: string, model: string) {
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+      "HTTP-Referer": "https://meeting-transcriber-saas.vercel.app",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 2000,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    return NextResponse.json({ error: `OpenRouter error: ${error}` }, { status: response.status });
   }
 
   const result = await response.json();

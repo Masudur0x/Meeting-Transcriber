@@ -56,6 +56,15 @@ const TRANSCRIPTION_PROVIDERS: ProviderOption[] = [
     bestFor: "Very long meetings (3+ hours), tight budget",
     description: "Ultra cheap via multimodal AI. Good for long meetings where cost adds up.",
   },
+  {
+    id: "openrouter",
+    name: "OpenRouter",
+    badge: "Any Model",
+    badgeColor: "#a78bfa",
+    cost: "varies",
+    bestFor: "Flexibility — pick any multimodal model you want",
+    description: "Route to any AI model via one API key. Use any multimodal model that supports audio.",
+  },
 ];
 
 const SUMMARIZATION_PROVIDERS: ProviderOption[] = [
@@ -94,6 +103,15 @@ const SUMMARIZATION_PROVIDERS: ProviderOption[] = [
     cost: "~$0.003/meeting",
     bestFor: "Quick meetings, ≤30min, or when other APIs have no credit",
     description: "Extremely cheap with decent quality. Perfect when you need to keep costs near zero.",
+  },
+  {
+    id: "openrouter",
+    name: "OpenRouter",
+    badge: "Any Model",
+    badgeColor: "#a78bfa",
+    cost: "varies",
+    bestFor: "Access to 300+ models — Claude, GPT-4o, Llama, Mistral, and more",
+    description: "One API key to access any LLM. Pick the exact model you want, switch anytime.",
   },
 ];
 
@@ -174,6 +192,19 @@ const PROVIDER_HELP: Record<string, { title: string; steps: string[]; exampleKey
     linkText: "Open Deepseek Platform",
     linkUrl: "https://platform.deepseek.com/api_keys",
   },
+  openrouter: {
+    title: "How to get OpenRouter API Key",
+    steps: [
+      "Go to openrouter.ai and sign up (free)",
+      "Click your profile → 'API Keys'",
+      "Click 'Create Key'",
+      "Copy the key (starts with sk-or-...)",
+      "Pick any model ID from openrouter.ai/models",
+    ],
+    exampleKey: "sk-or-v1-abc123def456ghi789...",
+    linkText: "Browse OpenRouter Models",
+    linkUrl: "https://openrouter.ai/models",
+  },
 };
 
 /* ── Which API key each provider needs ────────────────── */
@@ -183,6 +214,7 @@ function getNeededKeyForTranscription(provider: TranscriptionProvider): string {
     case "openai_whisper": return "openai";
     case "groq_whisper": return "groq";
     case "google_gemini": return "google_gemini";
+    case "openrouter": return "openrouter";
   }
 }
 
@@ -192,6 +224,7 @@ function getNeededKeyForSummarization(provider: SummarizationProvider): string {
     case "openai": return "openai";
     case "google_gemini": return "google_gemini";
     case "deepseek": return "deepseek";
+    case "openrouter": return "openrouter";
   }
 }
 
@@ -206,6 +239,8 @@ export default function Settings({ onClose, onSave, isOnboarding = false }: Sett
   const [geminiKey, setGeminiKey] = useState("");
   const [groqKey, setGroqKey] = useState("");
   const [deepseekKey, setDeepseekKey] = useState("");
+  const [openrouterKey, setOpenrouterKey] = useState("");
+  const [openrouterModel, setOpenrouterModel] = useState("openai/gpt-4o");
 
   const [crmPlatform, setCrmPlatform] = useState<CrmPlatform>("none");
   const [googleSheetsId, setGoogleSheetsId] = useState("");
@@ -230,6 +265,8 @@ export default function Settings({ onClose, onSave, isOnboarding = false }: Sett
     setGeminiKey(s.googleGeminiKey);
     setGroqKey(s.groqKey);
     setDeepseekKey(s.deepseekKey);
+    setOpenrouterKey(s.openrouterKey);
+    setOpenrouterModel(s.openrouterModel);
     setCrmPlatform(s.crmPlatform);
     setGoogleSheetsId(s.googleSheetsId);
     setHubspotKey(s.hubspotKey);
@@ -252,6 +289,7 @@ export default function Settings({ onClose, onSave, isOnboarding = false }: Sett
     google_gemini: geminiKey,
     groq: groqKey,
     deepseek: deepseekKey,
+    openrouter: openrouterKey,
   };
 
   const hasApiKeys = [...neededKeys].every((k) => keyValues[k]?.trim());
@@ -287,6 +325,8 @@ export default function Settings({ onClose, onSave, isOnboarding = false }: Sett
       googleGeminiKey: geminiKey.trim(),
       groqKey: groqKey.trim(),
       deepseekKey: deepseekKey.trim(),
+      openrouterKey: openrouterKey.trim(),
+      openrouterModel: openrouterModel.trim() || "openai/gpt-4o",
       crmPlatform,
       googleSheetsId: googleSheetsId.trim(),
       hubspotKey: hubspotKey.trim(),
@@ -313,7 +353,10 @@ export default function Settings({ onClose, onSave, isOnboarding = false }: Sett
     google_gemini: { label: "Google Gemini API Key", value: geminiKey, setter: setGeminiKey, placeholder: "AIzaSy...", helpKey: "google_gemini" },
     groq: { label: "Groq API Key", value: groqKey, setter: setGroqKey, placeholder: "gsk_...", helpKey: "groq" },
     deepseek: { label: "Deepseek API Key", value: deepseekKey, setter: setDeepseekKey, placeholder: "sk-...", helpKey: "deepseek" },
+    openrouter: { label: "OpenRouter API Key", value: openrouterKey, setter: setOpenrouterKey, placeholder: "sk-or-v1-...", helpKey: "openrouter" },
   };
+
+  const showOpenRouterModel = transcriptionProvider === "openrouter" || summarizationProvider === "openrouter";
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -493,6 +536,30 @@ export default function Settings({ onClose, onSave, isOnboarding = false }: Sett
                   </div>
                 );
               })}
+
+              {/* OpenRouter model selector */}
+              {showOpenRouterModel && (
+                <div className="fade-in">
+                  <label className="text-sm font-medium mb-1.5 block">
+                    OpenRouter Model
+                    <span className="text-[var(--danger)] ml-0.5">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={openrouterModel}
+                    onChange={(e) => setOpenrouterModel(e.target.value)}
+                    placeholder="openai/gpt-4o"
+                    className="w-full bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--accent)] transition-colors"
+                  />
+                  <p className="text-xs text-[var(--text-muted)] mt-1">
+                    Browse models at{" "}
+                    <a href="https://openrouter.ai/models" target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] hover:underline">
+                      openrouter.ai/models
+                    </a>
+                    {" "}— e.g. <span className="font-mono">openai/gpt-4o</span>, <span className="font-mono">anthropic/claude-3.5-sonnet</span>, <span className="font-mono">meta-llama/llama-3.1-405b</span>
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
