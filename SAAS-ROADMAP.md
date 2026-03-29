@@ -133,35 +133,80 @@ subscriptions
 
 ---
 
-## Build Order (When You're Ready)
+## Build Order
 
-### Phase 1: Core SaaS (Week 1-2)
-1. **Auth system** — Supabase auth with Google + email login
-2. **Database** — Users + meetings tables
-3. **Server-side API keys** — Move all AI keys to environment variables, remove client-side key input
-4. **Meeting storage** — Save transcripts and summaries to database
-5. **Dashboard** — Meeting history page with search
+### Phase 1: Login System (Waiting on Tim's confirmation)
 
-### Phase 2: Payments (Week 2-3)
-6. **Stripe integration** — Checkout page, subscription management
-7. **Plan enforcement** — Track usage, enforce limits per plan
-8. **Billing portal** — Users can manage/cancel subscription
-9. **Webhooks** — Handle payment success, failure, cancellation
+**You do:**
+- [ ] Get confirmation from Tim on which Google account to use (Wicflow or separate)
+- [ ] Create Supabase account at supabase.com using that account
+- [ ] Create a new Supabase project
+- [ ] Set up Google OAuth credentials in Google Cloud Console (guided walkthrough)
+- [ ] Share Supabase project URL and keys
 
-### Phase 3: Polish (Week 3-4)
-10. **Landing page** — Marketing page with pricing, features, testimonials
-11. **Onboarding flow** — Welcome email, guided first meeting
-12. **Settings page** — Profile, plan info, usage stats
-13. **Email notifications** — Welcome, payment receipts, usage warnings
+**I build:**
+- [ ] Google login (Sign in with Google)
+- [ ] Email/password login (sign up, sign in, forgot password)
+- [ ] Protected pages (only logged-in users can access the transcriber)
+- [ ] User profile stored in database
 
-### Phase 4: Growth (Month 2+)
-14. **Team features** — Invite members, shared meeting library
+### Phase 2: Server-Side API Keys
+
+**You do:**
+- [ ] Add your AI API keys (OpenAI, Groq, Anthropic, etc.) to Vercel environment variables
+
+**I build:**
+- [ ] Move all AI calls to the backend (users never see or need API keys)
+- [ ] Remove the BYOK (bring your own key) settings panel
+
+### Phase 3: Meeting History & Auto-Cleanup
+
+**I build:**
+- [ ] Save summaries to Supabase after each meeting
+- [ ] Auto-send summary to user's email/CRM
+- [ ] Auto-delete summaries after 24hrs or 7 days (configurable)
+- [ ] Dashboard where users see recent meetings
+
+**Key decisions made:**
+- No audio/recording storage (saves cost)
+- No long-term transcript storage — transcript used only during processing, then discarded
+- Summaries stored temporarily, auto-sent to email/CRM, then auto-deleted
+
+### Phase 4: Payment Connection (via Wicflow website)
+
+**You/Tim do:**
+- [ ] Set up pricing on Wicflow website
+- [ ] Provide how Wicflow sends payment notifications (webhook, n8n, etc.)
+
+**I build:**
+- [ ] Webhook endpoint that receives "user paid" signal from Wicflow
+- [ ] Auto-create user account and mark as active in Supabase
+- [ ] Send "welcome, set your password" email to new users
+- [ ] Only paid users can access the transcriber
+
+**Key decisions made:**
+- No Stripe inside the transcriber — payments handled entirely on the Wicflow website
+- Wicflow payment triggers a webhook → Supabase creates/activates the user
+- Individual users only (no team features in v1, can add later if needed)
+
+### Phase 5: Domain & Polish
+
+**You/Tim do:**
+- [ ] Decide domain (e.g. transcriber.wicflow.com or separate domain)
+- [ ] Point DNS to Vercel
+
+**I build:**
+- [ ] Landing page (features, link to Wicflow to purchase)
+- [ ] Onboarding flow for first-time users
+- [ ] Usage stats in settings page
+
+### Phase 6: Growth (Future)
+14. **Team features** — Invite members, shared meeting library (if demand exists)
 15. **Admin dashboard** — Revenue, users, usage analytics
-16. **Audio storage** — Option to save and replay recordings
-17. **Meeting search** — Full-text search across all transcripts
-18. **Integrations** — Auto-push to Slack, Notion, CRM after each meeting
-19. **Calendar sync** — Auto-start recording for scheduled meetings
-20. **Custom branding** — White-label option for agencies
+16. **Meeting search** — Full-text search across recent summaries
+17. **Integrations** — Auto-push to Slack, Notion, CRM after each meeting
+18. **Calendar sync** — Auto-start recording for scheduled meetings
+19. **Custom branding** — White-label option for agencies
 
 ---
 
@@ -207,41 +252,31 @@ subscriptions
 
 ---
 
-## Decisions You Need to Make Before SaaS Build
+## Decisions Made
 
-1. **Product name?** — "Meeting Transcriber" works, but something catchier helps marketing (e.g., MeetScribe, RecapAI, NoteBot)
+1. **No audio storage** — recordings are not saved, keeps costs near zero
+2. **No long-term transcript storage** — transcript is used during processing only, then discarded
+3. **Temporary summary storage** — summaries saved briefly, auto-sent to email/CRM, then auto-deleted (24hrs or 7 days)
+4. **No team features in v1** — individual users only, team features added later if demand exists
+5. **No Stripe in the transcriber** — payments handled on Wicflow website, webhook notifies Supabase to activate users
+6. **Web app only** — no desktop app for now, can add later if needed
 
-2. **Which AI providers per plan?**
-   - Free: Gemini only (cheapest for you)
-   - Basic: Groq + Gemini (good quality, affordable)
-   - Pro: All providers, user picks (premium feel)
+## Decisions Still Needed
 
-3. **Store recordings or not?**
-   - Yes = higher storage costs, but users can replay meetings
-   - No = cheaper, but transcript only (no going back to listen)
-
-4. **Team features in v1?**
-   - Simpler to launch without teams, add later
-   - But teams = higher revenue per account ($49 vs $15)
-
-5. **Free trial or free tier?**
-   - Free tier (3 meetings/mo forever) = steady funnel
-   - 14-day free trial of Pro = faster conversion but more churn
+1. **Product name?** — "Meeting Transcriber" or something catchier (MeetScribe, RecapAI, etc.)
+2. **Pricing?** — $10 one-time or monthly subscription — to be decided with Tim
+3. **Domain?** — transcriber.wicflow.com or separate domain
+4. **Which Google account?** — Wicflow or separate (waiting on Tim)
 
 ---
 
-## Quick Start Checklist
+## Quick Start Checklist (Phase 1 — Login System)
 
-When you're ready to build SaaS, do these first:
-
+- [ ] Get Tim's confirmation on which Google account to use
 - [ ] Create Supabase account and project
-- [ ] Create Stripe account and verify business
-- [ ] Set up Stripe products and prices (Basic $15, Pro $29)
-- [ ] Get Google OAuth credentials (for "Sign in with Google")
-- [ ] Buy a domain name
-- [ ] Fund your AI provider accounts ($50-100 each to start)
-- [ ] Upgrade Vercel to Pro plan
-- [ ] Tell me "let's build the SaaS" and I'll start with Phase 1
+- [ ] Set up Google OAuth credentials in Google Cloud Console
+- [ ] Share Supabase URL + keys
+- [ ] Tell me "let's build" and I'll start Phase 1
 
 ---
 

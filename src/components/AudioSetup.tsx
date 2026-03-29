@@ -178,14 +178,14 @@ read -p "  Press Enter to close..."
         <div className="p-6 pb-4">
           <div className="flex items-center justify-between mb-1">
             <h2 className="text-lg font-bold">
-              {setupState === "installed" ? "Audio Driver Ready!" : "One-Time Audio Setup"}
+              {setupState === "installed" ? "You&apos;re All Set!" : "Quick One-Time Setup"}
             </h2>
             <button onClick={onClose} className="text-[var(--text-muted)] hover:text-white text-2xl">&times;</button>
           </div>
           <p className="text-xs text-[var(--text-muted)]">
             {setupState === "installed"
-              ? "BlackHole is installed. You can record desktop app audio."
-              : "Required only if you want to record desktop apps (Zoom, Teams, etc.)"}
+              ? "BlackHole is installed. You can record any desktop meeting — no further setup needed."
+              : "To record desktop meetings (Zoom, Teams, Google Meet), we need a quick one-time setup."}
           </p>
         </div>
 
@@ -242,17 +242,32 @@ read -p "  Press Enter to close..."
           {/* Needs Installation */}
           {setupState === "needed" && (
             <>
+              {/* Friendly welcome message for Mac users */}
+              <div className="bg-[var(--accent-light)] border border-[rgba(99,102,241,0.2)] rounded-xl p-4">
+                <p className="text-sm text-[var(--text-primary)] leading-relaxed">
+                  We detected you&apos;re on a <strong>Mac</strong>. To record audio from desktop apps like Zoom, Teams, or Google Meet, you&apos;ll need a small free audio driver called <strong>BlackHole</strong>.
+                </p>
+                <div className="mt-3 flex items-center gap-2 bg-[var(--bg-card)] rounded-lg px-3 py-2">
+                  <svg className="w-4 h-4 text-[var(--success)] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <p className="text-xs text-[var(--text-secondary)]">
+                    <strong>One-time install</strong> — do it once, use it forever. No need to repeat this again.
+                  </p>
+                </div>
+              </div>
+
               <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-4">
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 bg-[var(--accent-light)] rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
                     <svg className="w-5 h-5 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                     </svg>
                   </div>
                   <div>
-                    <p className="text-sm font-semibold mb-1">BlackHole Audio Driver</p>
+                    <p className="text-sm font-semibold mb-1">Safe & Trusted</p>
                     <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                      A tiny, free, open-source audio driver that lets this app hear what your desktop apps are playing. Used by thousands of Mac users. Safe and trusted.
+                      BlackHole is free, open-source, and used by thousands of Mac users worldwide. It simply routes audio between apps — nothing else.
                     </p>
                   </div>
                 </div>
@@ -260,14 +275,14 @@ read -p "  Press Enter to close..."
 
               {!downloaded ? (
                 <>
-                  <p className="text-xs text-[var(--text-muted)] text-center">Two simple steps:</p>
+                  <p className="text-xs text-[var(--text-muted)] text-center font-medium">Just two quick steps and you&apos;re all set:</p>
 
                   <div className="space-y-3">
                     <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-3 flex items-center gap-3">
                       <span className="w-8 h-8 rounded-full bg-[var(--accent)] text-white flex items-center justify-center font-bold text-sm flex-shrink-0">1</span>
                       <div>
                         <p className="text-sm font-medium">Click the button below</p>
-                        <p className="text-xs text-[var(--text-muted)]">Downloads a small setup file</p>
+                        <p className="text-xs text-[var(--text-muted)]">Downloads a small setup file to your Mac</p>
                       </div>
                     </div>
 
@@ -275,7 +290,7 @@ read -p "  Press Enter to close..."
                       <span className="w-8 h-8 rounded-full bg-[var(--accent)] text-white flex items-center justify-center font-bold text-sm flex-shrink-0">2</span>
                       <div>
                         <p className="text-sm font-medium">Double-click the downloaded file</p>
-                        <p className="text-xs text-[var(--text-muted)]">It installs everything automatically</p>
+                        <p className="text-xs text-[var(--text-muted)]">It installs everything automatically — just click OK when prompted</p>
                       </div>
                     </div>
                   </div>
@@ -289,6 +304,10 @@ read -p "  Press Enter to close..."
                     </svg>
                     Download Setup File
                   </button>
+
+                  <p className="text-xs text-[var(--text-muted)] text-center">
+                    Takes less than a minute. After this, your app is ready to record any meeting.
+                  </p>
                 </>
               ) : (
                 <>
@@ -302,12 +321,15 @@ read -p "  Press Enter to close..."
                     </p>
                   </div>
 
-                  <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-3">
-                    <p className="text-xs text-[var(--text-muted)] mb-2">
-                      <strong>If Mac blocks it:</strong> Right-click the file → Open → Click &quot;Open&quot; again
+                  <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-3 space-y-2">
+                    <p className="text-xs text-[var(--text-muted)]">
+                      <strong>If Mac blocks it:</strong> Right-click the file &rarr; Open &rarr; Click &quot;Open&quot; again
                     </p>
                     <p className="text-xs text-[var(--text-muted)]">
                       <strong>It may ask for your Mac password</strong> — this is normal for installing audio drivers.
+                    </p>
+                    <p className="text-xs text-[var(--text-muted)]">
+                      <strong>Remember:</strong> This is a one-time setup. You won&apos;t need to do this again.
                     </p>
                   </div>
 
@@ -316,7 +338,7 @@ read -p "  Press Enter to close..."
                       onClick={checkForVirtualAudio}
                       className="flex-1 py-3 bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded-xl text-sm font-medium transition-all"
                     >
-                      Check Again
+                      I&apos;ve Installed It — Check Now
                     </button>
                     <button
                       onClick={downloadInstaller}
@@ -333,7 +355,7 @@ read -p "  Press Enter to close..."
                   onClick={onClose}
                   className="text-xs text-[var(--text-muted)] hover:text-white transition-colors"
                 >
-                  Skip — I&apos;ll only use browser meetings
+                  Skip — I&apos;ll only record my microphone for now
                 </button>
               </div>
             </>
